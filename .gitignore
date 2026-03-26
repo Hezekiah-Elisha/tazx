@@ -1,0 +1,37 @@
+# Binaries and build outputs
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Common output directories
+bin/
+dist/
+build/
+
+# Coverage and profiling
+coverage.out
+coverage.txt
+*.coverprofile
+*.prof
+
+# Logs and temp files
+*.log
+*.tmp
+tmp/
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
