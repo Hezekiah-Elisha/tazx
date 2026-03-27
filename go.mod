@@ -3,6 +3,7 @@ module tazx
 go 1.25.0
 
 require (
+	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/shirou/gopsutil/v4 v4.26.2
 	github.com/spf13/cobra v1.10.2
 )
