@@ -34,6 +34,7 @@ func init() {
 	rootCmd.AddCommand(dockerCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(cpuCmd)
+	rootCmd.AddCommand(watchCmd)
 }
 
 func Execute() {

@@ -17,8 +17,8 @@ var storageCmd = &cobra.Command{
 		totalStorage := v.Total / (1024 * 1024 * 1024) // Convert bytes to GB
 		freeStorage := v.Free / (1024 * 1024 * 1024)
 		usedStorage := totalStorage - freeStorage
-		Colorize(Green, "--- Memory Information ---\n")
-		Colorize(Green, fmt.Sprintf("Total: %v GB, Free: %v GB, Used: %v GB, UsedPercent: %f%%\n", totalStorage, freeStorage, usedStorage, v.UsedPercent))
+		Colorize(Blue, "--- Memory Information ---\n")
+		Colorize(Red, fmt.Sprintf("Total: %v GB, Free: %v GB, Used: %v GB, UsedPercent: %f%%\n", totalStorage, freeStorage, usedStorage, v.UsedPercent))
 		Colorize(Green, fmt.Sprintf("Total Swap: %.2f GB\n", float64(v.SwapTotal)/1024/1024/1024))
 		Colorize(Green, fmt.Sprintf("Total Memory: %.2f GB\n", float64(v.Total)/1024/1024/1024))
 		Colorize(Green, fmt.Sprintf("Memory Usage: %.2f%%\n", v.UsedPercent))
