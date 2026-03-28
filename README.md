@@ -1,4 +1,6 @@
-# tazx
+# TAZX
+
+<img src="ascii-tazx.png"/>
 
 > Tazama your server’s pulse instantly
 
