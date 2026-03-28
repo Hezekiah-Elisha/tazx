@@ -18,6 +18,10 @@ const (
 	Reset  Color = "\033[0m"
 )
 
+func Colorize(color Color, text string) {
+	fmt.Printf("%s%s%s", color, text, Reset)
+}
+
 var cpuCmd = &cobra.Command{
 	Use:   "cpu",
 	Short: "Manage your server CPU",
@@ -43,8 +47,4 @@ func cpuFunc() {
 		c, _ := cpu.Percent(0, false)
 		Colorize(Green, fmt.Sprintf("CPU: %v%%", c))
 	}
-}
-
-func Colorize(color Color, text string) {
-	fmt.Printf("%s%s%s", color, text, Reset)
 }
