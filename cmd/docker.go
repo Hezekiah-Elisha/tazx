@@ -23,7 +23,9 @@ func dockerFunction() {
 	ctx := context.Background()
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
-		panic("Error occurred while creating Docker API client: " + err.Error())
+		// panic("Error occurred while creating Docker API client: " + err.Error())
+		fmt.Print("It seems like Docker is not running or not properly configured. Please ensure Docker is installed and running on your system.")
+		return
 	}
 	defer apiClient.Close()
 
@@ -32,7 +34,9 @@ func dockerFunction() {
 		All: true,
 	})
 	if err != nil {
-		panic("Error occurred while listing containers: " + err.Error())
+		// panic("Error occurred while listing containers: " + err.Error())
+		fmt.Print("Unable to retrieve Docker containers. Please check your Docker configuration and ensure it is running.")
+		return
 	}
 
 	// Print each container's ID, status and the image it was created from.
