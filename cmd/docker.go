@@ -39,6 +39,11 @@ func dockerFunction() {
 		return
 	}
 
+	if len(result.Items) == 0 {
+		fmt.Println("No Docker containers found.")
+		return
+	}
+
 	// Print each container's ID, status and the image it was created from.
 	fmt.Printf("%s  %-22s  %s\n", "ID", "STATUS", "IMAGE")
 	for _, ctr := range result.Items {
