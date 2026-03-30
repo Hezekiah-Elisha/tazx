@@ -35,6 +35,8 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(cpuCmd)
 	rootCmd.AddCommand(watchCmd)
+	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(topCmd)
 }
 
 func Execute() {
