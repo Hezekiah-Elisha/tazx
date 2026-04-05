@@ -28,6 +28,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(storageCmd)
+	rootCmd.AddCommand(memoryCmd)
 	rootCmd.AddCommand(monitorCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(doctorCmd)
@@ -37,6 +38,7 @@ func init() {
 	rootCmd.AddCommand(watchCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(topCmd)
+	rootCmd.AddCommand(usersCmd)
 }
 
 func Execute() {

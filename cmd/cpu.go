@@ -29,8 +29,12 @@ var cpuCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Placeholder for CPU command logic
 		c, _ := cpu.Percent(0, false)
-		fmt.Printf("CPU: %v%%\n", c)
 		Colorize(Green, fmt.Sprintf("CPU: %v%%", c))
+		Colorize(Blue, "\n--- CPU Information Per Logical CPUs ---\n")
+		infos, _ := cpu.Info()
+		for _, info := range infos {
+			Colorize(Blue, fmt.Sprintf("CPU: %s, Cores: %d, Speed: %.2f MHz\n", info.ModelName, info.Cores, info.Mhz))
+		}
 
 	},
 }

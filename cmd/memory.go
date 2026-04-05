@@ -7,12 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var storageCmd = &cobra.Command{
+var memoryCmd = &cobra.Command{
 	Use:   "memory",
 	Short: "Manage your server memory",
 	Long:  `View and manage your server's memory usage, including RAM and swap space.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Placeholder for storage command logic
+		// Placeholder for memory command logic
 		v, _ := mem.VirtualMemory()
 		totalStorage := v.Total / (1024 * 1024 * 1024) // Convert bytes to GB
 		freeStorage := v.Free / (1024 * 1024 * 1024)
