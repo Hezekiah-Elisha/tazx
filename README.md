@@ -1,7 +1,7 @@
-
 <img src="ascii-tazx.png" style="width: 50%"/>
 
 ---
+
 # TAZX
 
 > Tazama your server’s pulse instantly
@@ -16,6 +16,8 @@
 
 - 🔍 **Developer-friendly insights**
   - Not just metrics — _explanations_
+
+for more understanding I used [this](https://leapcell.medium.com/gopsutil-powerful-system-stats-for-go-developers-2a1941c40822) article here
 
 ---
 
@@ -163,6 +165,8 @@ If you have ideas, suggestions, or bug fixes:
 - Fork the repo
 - Create a new branch
 - Submit a pull request
+
+> I am pretty new to open source so, Please, I accept contributions. Raise issues, I will respond as fast as I can.
 
 ## 📣 Inspiration
 
