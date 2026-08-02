@@ -29,18 +29,18 @@ type RouteTraffic struct {
 }
 
 type LogSummary struct {
-	TotalRequests     int
-	RequestsPerMin    float64
-	ErrorCount        int
-	StatusCounts      map[int]int
-	RouteCounts       map[string]int
-	IPCounts          map[string]int
-	SuspiciousRoutes  map[string]int
-	FailedLogins      int
-	TopRoutes         []RouteTraffic
-	TopIPs            []string
-	ErrorEntries      []LogEntry
-	RecentEntries     []LogEntry
+	TotalRequests    int
+	RequestsPerMin   float64
+	ErrorCount       int
+	StatusCounts     map[int]int
+	RouteCounts      map[string]int
+	IPCounts         map[string]int
+	SuspiciousRoutes map[string]int
+	FailedLogins     int
+	TopRoutes        []RouteTraffic
+	TopIPs           []string
+	ErrorEntries     []LogEntry
+	RecentEntries    []LogEntry
 }
 
 var (

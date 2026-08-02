@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	errorsOnly  bool
-	routesOnly  bool
-	tailLines   int
-	followLogs  bool
+	errorsOnly bool
+	routesOnly bool
+	tailLines  int
+	followLogs bool
 )
 
 var logsCmd = &cobra.Command{
