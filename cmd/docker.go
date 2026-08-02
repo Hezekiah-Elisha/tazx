@@ -1,52 +1,82 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/moby/moby/client"
+	"tazx/internal/docker"
+	"tazx/libs"
+
 	"github.com/spf13/cobra"
 )
+
+var showAllContainers bool
 
 var dockerCmd = &cobra.Command{
 	Use:   "docker",
 	Short: "Check the status of your Docker containers",
-	Long:  `Get a quick overview of your Docker containers' health and performance.`,
+	Long:  `Get a quick overview of your Docker containers' health, status, and resource usage.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Placeholder for docker command logic
-		dockerFunction()
+		runDockerPs(showAllContainers)
 	},
 }
 
-func dockerFunction() {
-	// Placeholder for Docker command logic
-	ctx := context.Background()
-	apiClient, err := client.New(client.FromEnv)
+var dockerPsCmd = &cobra.Command{
+	Use:   "ps",
+	Short: "List Docker containers",
+	Run: func(cmd *cobra.Command, args []string) {
+		runDockerPs(showAllContainers)
+	},
+}
+
+var dockerStatsCmd = &cobra.Command{
+	Use:   "stats",
+	Short: "Display container resource usage statistics",
+	Run: func(cmd *cobra.Command, args []string) {
+		runDockerPs(true)
+	},
+}
+
+func runDockerPs(all bool) {
+	libs.Colorize(libs.Bold, "\n🐳 Docker Containers Overview\n\n")
+
+	containers, err := docker.GetContainers(all)
 	if err != nil {
-		// panic("Error occurred while creating Docker API client: " + err.Error())
-		fmt.Print("It seems like Docker is not running or not properly configured. Please ensure Docker is installed and running on your system.")
-		return
-	}
-	defer apiClient.Close()
-
-	// List all containers (both stopped and running).
-	result, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
-		All: true,
-	})
-	if err != nil {
-		// panic("Error occurred while listing containers: " + err.Error())
-		fmt.Print("Unable to retrieve Docker containers. Please check your Docker configuration and ensure it is running.")
+		libs.Colorize(libs.Yellow, "⚠️ Docker daemon is not running or not accessible.\n")
+		libs.Colorize(libs.Gray, fmt.Sprintf("   Detail: %v\n\n", err))
+		libs.Colorize(libs.Cyan, "💡 Tip: Ensure Docker engine is installed and started (e.g. 'sudo systemctl start docker').\n\n")
 		return
 	}
 
-	if len(result.Items) == 0 {
-		fmt.Println("No Docker containers found.")
+	if len(containers) == 0 {
+		libs.Colorize(libs.Yellow, "No Docker containers found.\n\n")
 		return
 	}
 
-	// Print each container's ID, status and the image it was created from.
-	fmt.Printf("%s  %-22s  %s\n", "ID", "STATUS", "IMAGE")
-	for _, ctr := range result.Items {
-		fmt.Printf("%s  %-22s  %s\n", ctr.ID, ctr.Status, ctr.Image)
+	fmt.Printf("%-14s %-25s %-30s %-20s %s\n", "CONTAINER ID", "NAMES", "IMAGE", "STATUS", "PORTS")
+	fmt.Println("---------------------------------------------------------------------------------------------------------")
+
+	for _, c := range containers {
+		statusColor := libs.Green
+		if c.State != "running" {
+			statusColor = libs.Yellow
+		}
+
+		statusStr := libs.SprintColor(statusColor, c.Status)
+		fmt.Printf("%-14s %-25s %-30s %-20s %s\n", c.ID, trunc(c.Names, 25), trunc(c.Image, 30), statusStr, c.Ports)
 	}
+	fmt.Println()
+}
+
+func trunc(s string, max int) string {
+	if len(s) > max {
+		return s[:max-3] + "..."
+	}
+	return s
+}
+
+func init() {
+	dockerCmd.Flags().BoolVarP(&showAllContainers, "all", "a", true, "Show all containers (default shows all)")
+	dockerPsCmd.Flags().BoolVarP(&showAllContainers, "all", "a", true, "Show all containers")
+	dockerCmd.AddCommand(dockerPsCmd)
+	dockerCmd.AddCommand(dockerStatsCmd)
 }

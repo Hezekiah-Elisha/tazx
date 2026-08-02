@@ -1,12 +1,16 @@
 package cmd
 
 import (
-	"fmt"
+	"tazx/internal/config"
+	"tazx/libs"
 
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
+var (
+	cfgFile string
+	logPathFlag string
+)
 
 const banner = `
 ████████╗ █████╗ ███████╗██╗  ██╗
@@ -20,12 +24,27 @@ const banner = `
 var rootCmd = &cobra.Command{
 	Use:   "tazx",
 	Short: "Tazama your server’s pulse instantly",
+	Long:  `Tazx is a lightweight CLI tool that helps developers monitor server health, analyze logs, and detect issues — all from the terminal.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		fmt.Print(banner)
+		libs.Colorize(libs.Cyan, banner)
 	},
 }
 
+func GetAppConfig() config.Config {
+	cfg, _, err := config.LoadConfig(cfgFile)
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+	if logPathFlag != "" {
+		cfg.LogPath = logPathFlag
+	}
+	return cfg
+}
+
 func init() {
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tazx.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&logPathFlag, "path", "p", "", "path to server log file")
+
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(storageCmd)
 	rootCmd.AddCommand(memoryCmd)
@@ -37,12 +56,11 @@ func init() {
 	rootCmd.AddCommand(cpuCmd)
 	rootCmd.AddCommand(watchCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(topCmd)
 	rootCmd.AddCommand(usersCmd)
 }
 
 func Execute() {
-	// Add the persistent --config flag to the root command.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.myapp.yaml)")
 	cobra.CheckErr(rootCmd.Execute())
 }
