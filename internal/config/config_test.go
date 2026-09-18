@@ -14,6 +14,23 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.CpuThreshold != 80.0 {
 		t.Errorf("expected cpu threshold 80.0, got %f", cfg.CpuThreshold)
 	}
+	if cfg.LogPath != DefaultNginxLogPath {
+		t.Errorf("expected default LogPath %s, got %s", DefaultNginxLogPath, cfg.LogPath)
+	}
+}
+
+func TestFindNginxLogPath(t *testing.T) {
+	path := FindNginxLogPath()
+	if path == "" {
+		t.Errorf("expected non-empty nginx log path")
+	}
+}
+
+func TestFindApacheLogPath(t *testing.T) {
+	path := FindApacheLogPath()
+	if path == "" {
+		t.Errorf("expected non-empty apache log path")
+	}
 }
 
 func TestSaveAndLoadConfig(t *testing.T) {

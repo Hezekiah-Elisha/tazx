@@ -60,14 +60,16 @@ tazx/
 - Delivers actionable developer explanations (`Likely cause: ...`, `→ Recommendation: ...`).
 
 ### 3. Log Analysis & Streaming (`tazx logs`)
+- Defaults to Nginx access logs (`/var/log/nginx/access.log`) with cross-platform candidate detection.
 - Supports Nginx / Apache Combined Access Log format, Common Log Format, and generic server logs.
+- Supports positional service or path arguments (e.g. `tazx logs nginx`, `tazx logs apache`, `tazx logs ./access.log`).
 - Flags implemented:
   - `--errors` (`-e`): Filters entries with HTTP status >= 400.
   - `--routes` (`-r`): Displays traffic breakdown by route, top client IPs, and scan targets.
   - `--path` (`-p`): Overrides target log file path.
   - `--lines` (`-n`): Custom line tail limit.
   - `--follow` (`-f`): Live log streaming (similar to `tail -f`).
-- Auto-generates a realistic sample log file if none exists for out-of-the-box demo capability.
+- Provides actionable error messages if log files are missing or lack read permissions.
 
 ### 4. Live Process Monitor (`tazx top`)
 - Interactive real-time process table rendering PIDs, Username, Command, CPU %, Memory %, and Status.

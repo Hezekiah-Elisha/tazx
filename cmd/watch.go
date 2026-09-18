@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"tazx/internal/config"
 	"tazx/internal/docker"
 	"tazx/internal/system"
 	"tazx/libs"
@@ -27,7 +29,18 @@ var watchCmd = &cobra.Command{
 			watchCPU()
 		case "logs":
 			cfg := GetAppConfig()
-			followLogFile(cfg.LogPath, false)
+			logPath := cfg.LogPath
+			if len(args) > 1 && logPathFlag == "" {
+				switch strings.ToLower(args[1]) {
+				case "nginx":
+					logPath = config.FindNginxLogPath()
+				case "apache", "apache2", "httpd":
+					logPath = config.FindApacheLogPath()
+				default:
+					logPath = args[1]
+				}
+			}
+			followLogFile(logPath, false)
 		case "docker":
 			watchDocker()
 		default:
@@ -45,11 +58,23 @@ var watchCpuCmd = &cobra.Command{
 }
 
 var watchLogsCmd = &cobra.Command{
-	Use:   "logs",
-	Short: "Watch server log stream in real time",
+	Use:   "logs [service|path]",
+	Short: "Watch server log stream in real time (defaults to nginx)",
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := GetAppConfig()
-		followLogFile(cfg.LogPath, false)
+		logPath := cfg.LogPath
+		if len(args) > 0 && logPathFlag == "" {
+			switch strings.ToLower(args[0]) {
+			case "nginx":
+				logPath = config.FindNginxLogPath()
+			case "apache", "apache2", "httpd":
+				logPath = config.FindApacheLogPath()
+			default:
+				logPath = args[0]
+			}
+		}
+		followLogFile(logPath, false)
 	},
 }
 
