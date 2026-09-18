@@ -67,10 +67,16 @@ tazx top
 
 #### Analyze Logs
 
+By default, Tazx analyzes Nginx logs (`/var/log/nginx/access.log`). You can also target other services or custom log files:
+
 ```bash
-tazx logs
-tazx logs --errors
-tazx logs --routes
+tazx logs                  # Views Nginx logs by default
+tazx logs nginx            # Explicitly target Nginx logs
+tazx logs apache           # Target Apache logs (/var/log/apache2/access.log)
+tazx logs ./access.log     # Target custom log file
+tazx logs --errors         # Filter error status codes (>= 400)
+tazx logs --routes         # Route traffic and bot scan analysis
+tazx logs --follow         # Stream live logs (like tail -f)
 ```
 
 #### Diagnose issues

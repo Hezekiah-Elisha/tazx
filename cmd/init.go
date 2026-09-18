@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"tazx/internal/config"
 	"tazx/internal/logs"
@@ -31,10 +32,12 @@ var initCmd = &cobra.Command{
 		libs.Colorize(libs.Cyan, fmt.Sprintf("   log_path: %s\n", cfg.LogPath))
 		libs.Colorize(libs.Cyan, fmt.Sprintf("   refresh_rate: %ds\n\n", cfg.RefreshRate))
 
-		// Ensure sample log file exists so user can immediately run 'tazx logs' or 'tazx doctor'
+		// Ensure sample log file exists if possible
 		err = logs.EnsureSampleLog(cfg.LogPath)
 		if err == nil {
-			libs.Colorize(libs.Green, fmt.Sprintf("✅ Sample server log ready at %s\n", cfg.LogPath))
+			libs.Colorize(libs.Green, fmt.Sprintf("✅ Server log ready at %s\n", cfg.LogPath))
+		} else if _, statErr := os.Stat(cfg.LogPath); statErr != nil {
+			libs.Colorize(libs.Yellow, fmt.Sprintf("ℹ️  Note: Log file not found at %s. Once Nginx is running, logs will be parsed automatically.\n", cfg.LogPath))
 		}
 
 		libs.Colorize(libs.Bold, "\n🚀 You can now run:\n")

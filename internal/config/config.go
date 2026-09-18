@@ -25,20 +25,46 @@ func DefaultConfig() Config {
 	}
 }
 
-func findDefaultLogPath() string {
-	commonPaths := []string{
-		"/var/log/nginx/access.log",
-		"/var/log/apache2/access.log",
-		"/var/log/httpd/access_log",
-		"./access.log",
-		"./server.log",
-	}
-	for _, p := range commonPaths {
+const (
+	DefaultNginxLogPath  = "/var/log/nginx/access.log"
+	DefaultApacheLogPath = "/var/log/apache2/access.log"
+)
+
+var NginxCandidatePaths = []string{
+	"/var/log/nginx/access.log",
+	"/usr/local/var/log/nginx/access.log", // macOS Homebrew Intel
+	"/opt/homebrew/var/log/nginx/access.log", // macOS Homebrew Apple Silicon
+	"/var/log/nginx-access.log",
+	"/var/log/nginx/access_log",
+}
+
+var ApacheCandidatePaths = []string{
+	"/var/log/apache2/access.log",
+	"/var/log/httpd/access_log",
+	"/var/log/httpd/access.log",
+	"/var/log/apache2/access_log",
+}
+
+func FindNginxLogPath() string {
+	for _, p := range NginxCandidatePaths {
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
 	}
-	return "./access.log"
+	return DefaultNginxLogPath
+}
+
+func FindApacheLogPath() string {
+	for _, p := range ApacheCandidatePaths {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return DefaultApacheLogPath
+}
+
+func findDefaultLogPath() string {
+	return FindNginxLogPath()
 }
 
 func GetConfigPath() string {

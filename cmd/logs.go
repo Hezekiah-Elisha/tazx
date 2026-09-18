@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"tazx/internal/config"
 	"tazx/internal/logs"
 	"tazx/libs"
 
@@ -20,12 +22,24 @@ var (
 )
 
 var logsCmd = &cobra.Command{
-	Use:   "logs",
-	Short: "View and analyze your server logs",
-	Long:  `Access and analyze your server logs to identify errors, unusual routes, and traffic patterns.`,
+	Use:   "logs [service|path]",
+	Short: "View and analyze your server logs (defaults to nginx)",
+	Long:  `Access and analyze your server logs (defaults to Nginx) to identify errors, unusual routes, and traffic patterns. You can also specify a service (nginx, apache) or a custom log path.`,
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := GetAppConfig()
 		logPath := cfg.LogPath
+
+		if len(args) > 0 && logPathFlag == "" {
+			switch strings.ToLower(args[0]) {
+			case "nginx":
+				logPath = config.FindNginxLogPath()
+			case "apache", "apache2", "httpd":
+				logPath = config.FindApacheLogPath()
+			default:
+				logPath = args[0]
+			}
+		}
 
 		if followLogs {
 			libs.Colorize(libs.Cyan, fmt.Sprintf("Streaming logs from %s (Press Ctrl+C to stop)...\n\n", logPath))
@@ -37,7 +51,7 @@ var logsCmd = &cobra.Command{
 			libs.Colorize(libs.Bold, fmt.Sprintf("\n📜 Route & Traffic Analysis for %s\n\n", logPath))
 			summary, err := logs.AnalyzeLogs(logPath)
 			if err != nil {
-				libs.Colorize(libs.Red, fmt.Sprintf("Error analyzing logs: %v\n", err))
+				printLogError(logPath, err)
 				return
 			}
 
@@ -68,7 +82,7 @@ var logsCmd = &cobra.Command{
 
 		entries, _, err := logs.TailLogs(logPath, tailLines, errorsOnly, false)
 		if err != nil {
-			libs.Colorize(libs.Red, fmt.Sprintf("Error reading logs: %v\n", err))
+			printLogError(logPath, err)
 			return
 		}
 
@@ -104,11 +118,22 @@ var logsCmd = &cobra.Command{
 	},
 }
 
+func printLogError(logPath string, err error) {
+	libs.Colorize(libs.Red, fmt.Sprintf("Error reading logs: %v\n", err))
+	if os.IsNotExist(err) || strings.Contains(err.Error(), "no such file or directory") {
+		libs.Colorize(libs.Yellow, fmt.Sprintf("Log file not found at '%s'.\n", logPath))
+		libs.Colorize(libs.Yellow, "Make sure Nginx is installed and running, or specify a custom log file with --path (e.g. tazx logs -p ./access.log).\n")
+	} else if os.IsPermission(err) || strings.Contains(err.Error(), "permission denied") {
+		libs.Colorize(libs.Yellow, fmt.Sprintf("Permission denied accessing '%s'.\n", logPath))
+		libs.Colorize(libs.Yellow, "Try running with 'sudo' or ensure your user has read permissions to the log file.\n")
+	}
+}
+
 func followLogFile(path string, errorsOnly bool) {
 	_ = logs.EnsureSampleLog(path)
 	file, err := os.Open(path)
 	if err != nil {
-		libs.Colorize(libs.Red, fmt.Sprintf("Error opening file: %v\n", err))
+		printLogError(path, err)
 		return
 	}
 	defer file.Close()
