@@ -1,6 +1,6 @@
 package main
 
-import "tazx/cmd"
+import "github.com/Hezekiah-Elisha/tazx/cmd"
 
 func main() {
 	cmd.Execute()

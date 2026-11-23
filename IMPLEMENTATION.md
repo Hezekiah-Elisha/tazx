@@ -1,116 +1,104 @@
-# Implementation Document (`impl.md`)
+# Tazx v1.1 Implementation Document
 
 ## Overview
 
-**Tazx** is a lightweight, developer-first CLI tool for real-time server health monitoring, log analysis, smart anomaly diagnostics, and Docker container inspection.
-
-As a Senior Software Engineer and DevOps Engineer, the project was transformed from initial command stubs into a fully functional, production-grade Go CLI application matching all specifications outlined in the project `README.md`.
+**Tazx** is a lightweight, read-only Go CLI utility for server health inspection, diagnostics, web access log analysis, listening port inspection, systemd service checks, network overview, and Docker container inspection.
 
 ---
 
-## 🏛️ System Architecture & Package Structure
+## Architecture & File Structure
 
-The codebase adheres to clean Go architecture guidelines, separating CLI commands from core domain logic:
-
-```
+```text
 tazx/
-├── cmd/                # Cobra CLI command definitions & flag handling
-│   ├── config.go       # tazx config command
-│   ├── cpu.go          # tazx cpu metrics command
-│   ├── docker.go       # tazx docker ps / stats command
-│   ├── doctor.go       # tazx doctor smart diagnostics command
-│   ├── init.go         # tazx init environment setup command
-│   ├── logs.go         # tazx logs analysis & tailing command
-│   ├── memory.go       # tazx memory metrics command
-│   ├── monitor.go      # tazx monitor continuous dashboard
-│   ├── root.go         # Cobra root command & persistent flags
-│   ├── status.go       # tazx status overview command
-│   ├── storage.go      # tazx storage & partition command
-│   ├── top.go          # tazx top process viewer
-│   ├── users.go        # tazx users session command
-│   ├── version.go      # tazx version command
-│   └── watch.go        # tazx watch resource command
-├── internal/           # Core domain logic & business packages
-│   ├── config/         # Config loading, defaults, YAML persistence
-│   ├── docker/         # Moby / Docker SDK container inspection
-│   ├── doctor/         # Smart diagnostic rule engine & anomaly detector
-│   ├── logs/           # Access log parsing, route analysis, error tailing
-│   └── system/         # gopsutil metrics collection (CPU, RAM, Disk, Procs)
-├── libs/               # Shared utilities
-│   └── colorize.go     # ANSI terminal color formatting & styling
-├── main.go             # Entrypoint invoking cmd.Execute()
-└── impl.md             # Technical implementation documentation
+├── main.go                              # Entry point invoking cmd.Execute()
+├── go.mod / go.sum                      # Dependencies (cobra, gopsutil/v4, moby/moby, yaml.v3)
+├── README.md                            # User & installation documentation
+├── IMPLEMENTATION.md                    # Technical architecture & module summary
+├── LICENSE                              # MIT License
+├── cmd/                                 # Cobra CLI commands & flag handling
+│   ├── root.go                          # Root command, --config, -p/--path, --no-color, --json, signalContext
+│   ├── status.go                        # `tazx status`
+│   ├── doctor.go                        # `tazx doctor`
+│   ├── cpu.go                           # `tazx cpu`
+│   ├── memory.go                        # `tazx memory`
+│   ├── storage.go                       # `tazx storage` (partitions + bounded --large dir scan)
+│   ├── users.go                         # `tazx users`
+│   ├── ports.go                         # `tazx ports`
+│   ├── services.go                      # `tazx services`
+│   ├── network.go                       # `tazx network`
+│   ├── logs.go                          # `tazx logs`
+│   ├── top.go                           # `tazx top`
+│   ├── monitor.go                       # `tazx monitor`
+│   ├── watch.go                         # `tazx watch` (cpu, logs, docker)
+│   ├── docker.go                        # `tazx docker ps` & `tazx docker stats`
+│   ├── init.go                          # `tazx init` (optional config creation, --force)
+│   ├── config.go                        # `tazx config`
+│   ├── update.go                        # `tazx update` / `upgrade` (--check, --version, --force)
+│   ├── version.go                       # `tazx version`
+│   └── cli_test.go                      # CLI integration & SIGINT tests
+├── internal/
+│   ├── config/
+│   │   ├── config.go                    # YAML config load/save (0600), validation, regular-file checks
+│   │   └── config_test.go
+│   ├── system/
+│   │   ├── system.go                    # CPU, load avg, RAM/available, swap, host, users, ProcessSampler
+│   │   ├── storage.go                   # Multi-partition filtering + bounded FindLargeDirs
+│   │   └── system_test.go
+│   ├── logs/
+│   │   ├── logs.go                      # Combined/Common log parser, redaction, ring-buffer tail, FollowLogs
+│   │   └── logs_test.go
+│   ├── docker/
+│   │   ├── docker.go                    # Read-only ContainerList + concurrent ContainerStats calculations
+│   │   └── docker_test.go
+│   ├── ports/
+│   │   ├── ports.go                     # Listening TCP/UDP sockets + PID/process mapping
+│   │   └── ports_test.go
+│   ├── services/
+│   │   ├── services.go                  # Service name validation & systemctl output parsers
+│   │   ├── services_linux.go            # Linux systemd queries via exec.CommandContext (no shell)
+│   │   ├── services_other.go            # Non-Linux ErrSystemdUnavailable stub
+│   │   └── services_test.go
+│   ├── network/
+│   │   ├── network.go                   # Interfaces, IPs, IO counters, DNS parsing, --check diagnostics
+│   │   ├── gateway_linux.go             # /proc/net/route default gateway reader
+│   │   ├── gateway_other.go             # Darwin route fallback / other stub
+│   │   └── network_test.go
+│   ├── updater/
+│   │   ├── updater.go                   # HTTPS + TLS 1.2 + SHA-256 verified atomic binary updater
+│   │   └── updater_test.go
+│   └── doctor/
+│       ├── doctor.go                    # Provider-injected read-only diagnostic engine
+│       └── doctor_test.go
+├── libs/
+│   ├── colorize.go                      # ANSI color helpers, ColorPadRight, NO_COLOR/TTY check, PrintJSON
+│   ├── format.go                        # Rune-safe Truncate/PadRight, FormatBytes, FormatDuration
+│   ├── sanitize.go                      # ANSI/OSC escape & C0/C1 control-character stripping
+│   ├── screen.go                        # Alternate-screen LiveScreen, ANSI clipping, synchronized frame rendering
+│   ├── screen_unix.go                   # TIOCGWINSZ terminal size & SIGWINCH resize notifications
+│   ├── screen_other.go                  # Non-Unix LiveScreen fallback stubs
+│   ├── libs_test.go
+│   └── screen_test.go
+└── scripts/
+    ├── install.sh                       # HTTPS + SHA-256 verified installer (--from-source, --uninstall)
+    └── build-release.sh                 # Cross-platform CGO_ENABLED=0 release builder & checksums.txt
 ```
 
 ---
 
-## ⚙️ Features Implemented
+## Core Design Principles
 
-### 1. Instant Server Status (`tazx status`)
-- Aggregates CPU utilization, RAM usage, and Disk partition status.
-- Analyzes access logs for real-time traffic (Requests/min, total requests, error rates).
-- Highlights active alerts (bot traffic, high disk usage, elevated error rates).
-
-### 2. Smart Diagnostics Engine (`tazx doctor`)
-- Detects system resource bottlenecks (CPU > 80/90%, RAM > 85/90%, Disk > 85/90%) and correlates them with top consumer processes.
-- Analyzes log entries for security & traffic anomalies:
-  - **Bot Scanning Attempt**: Identifies automated probes targeting `/wp-admin`, `/.env`, `/phpmyadmin`, `/.git`, `/xmlrpc.php`.
-  - **Brute-Force Detection**: Identifies repeated failed logins (401/403 HTTP statuses).
-  - **Error Rate Spikes**: Warns when HTTP 4xx/5xx responses exceed healthy thresholds.
-- Delivers actionable developer explanations (`Likely cause: ...`, `→ Recommendation: ...`).
-
-### 3. Log Analysis & Streaming (`tazx logs`)
-- Defaults to Nginx access logs (`/var/log/nginx/access.log`) with cross-platform candidate detection.
-- Supports Nginx / Apache Combined Access Log format, Common Log Format, and generic server logs.
-- Supports positional service or path arguments (e.g. `tazx logs nginx`, `tazx logs apache`, `tazx logs ./access.log`).
-- Flags implemented:
-  - `--errors` (`-e`): Filters entries with HTTP status >= 400.
-  - `--routes` (`-r`): Displays traffic breakdown by route, top client IPs, and scan targets.
-  - `--path` (`-p`): Overrides target log file path.
-  - `--lines` (`-n`): Custom line tail limit.
-  - `--follow` (`-f`): Live log streaming (similar to `tail -f`).
-- Provides actionable error messages if log files are missing or lack read permissions.
-
-### 4. Live Process Monitor (`tazx top`)
-- Interactive real-time process table rendering PIDs, Username, Command, CPU %, Memory %, and Status.
-- Flags: `--sort-mem` (`-m`), `--limit` (`-l`), `--refresh` (`-r`), `--once`.
-
-### 5. Docker Integration (`tazx docker`)
-- Subcommands: `tazx docker ps`, `tazx docker stats`.
-- Lists container ID, names, image, status, and port bindings.
-- Handles environments without Docker gracefully with helpful troubleshooting advice.
-
-### 6. Subcommands & System Tools
-- `tazx cpu`: CPU utilization, logical core topology, clock speed, top CPU processes.
-- `tazx memory`: Total/used/free RAM, swap utilization, memory consumer processes.
-- `tazx storage`: Disk space on `/`, percentage usage, status indicator (`OK`, `WARNING`, `CRITICAL`).
-- `tazx users`: Active user login sessions and terminal details.
-- `tazx init`: Creates default configuration (`~/.tazx.yaml`) and sample access log.
-- `tazx config`: Displays active configuration parameters.
-- `tazx watch`: Continuous watcher for specific targets (`cpu`, `logs`, `docker`).
-- `tazx monitor`: Real-time system and traffic dashboard.
-- `tazx version`: Displays release version (`v1.0.0`), Go runtime, and target OS/Arch.
-
----
-
-## 🧪 Testing & Verification
-
-1. **Compilation & Build**:
-   ```bash
-   go build -o tazx
-   ```
-   Built cleanly with zero warnings or errors.
-
-2. **Automated Unit Tests**:
-   - `internal/config`: TestDefaultConfig, TestSaveAndLoadConfig, TestLoadConfigFallback.
-   - `internal/logs`: TestParseLineCombinedLogFormat, TestAnalyzeLogs, TestTailLogs.
-   - `internal/doctor`: TestRunDiagnostics (verifying bot scan & brute-force detection).
-   
-   Command:
-   ```bash
-   go test -v ./...
-   ```
-   Result: **PASS** across all packages.
-
-3. **Runtime Verification**:
-   - Verified `./tazx status`, `./tazx doctor`, `./tazx logs`, `./tazx top --once`, `./tazx docker`, `./tazx init`, `./tazx config`, `./tazx cpu`, `./tazx memory`, `./tazx storage`, `./tazx users`, `./tazx version`.
+1. **Real Data Only**: No silent sample/seed log creation anywhere. Missing log files return clear errors without touching the filesystem.
+2. **Read-Only Operations**: Diagnostics, Docker inspection, systemd queries, and port/network checks never mutate system state, restart units, or modify containers.
+3. **Security Hardening**:
+   - Terminal escape sequence stripping (`libs.SanitizeTerminal`) on all external inputs (logs, process names, container names, unit descriptions).
+   - Sensitive query parameter (`token`, `api_key`, `password`, `secret`, etc.) and bearer token redaction in log outputs.
+   - Regular-file validation (`config.ValidateRegularFile`) before opening configs or logs, rejecting directories, FIFOs, and device files.
+   - Strict unit-name validation (`services.ValidateServiceName`) and `exec.CommandContext` without shell interpretation.
+   - `0600` file mode on generated config files and explicit `--force` required before overwriting existing config.
+4. **Accurate Metrics & Graceful Cancellation**:
+   - `ProcessSampler` preserves process handles across ticks for interval CPU% calculation and prunes exited PIDs.
+   - `FollowLogs` handles log file rotation (`!os.SameFile`) and truncation (`size < offset`), and stops cleanly on context cancellation.
+   - Full-screen live commands (`monitor`, `top`, `watch cpu`, `watch docker`, `docker stats --watch`) render via `libs.LiveScreen` in the terminal alternate screen buffer (`\033[?1049h`/`l`) with synchronized in-place frame updates (`\033[?2026h`/`l`), `SIGWINCH` resize redrawing, and clean restoration on `SIGINT`/`SIGTERM`.
+5. **Consistent Output & JSON Mode**:
+   - `--no-color`, `NO_COLOR`, and non-TTY detection disable ANSI escape codes automatically.
+   - `--json` emits clean JSON with the ASCII banner suppressed.
