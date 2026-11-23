@@ -1,6 +1,6 @@
 module github.com/Hezekiah-Elisha/tazx
 
-go 1.26.0
+go 1.27.4
 
 require (
 	github.com/moby/moby/api v1.57.0
