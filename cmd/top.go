@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
-	"tazx/internal/system"
-	"tazx/libs"
+	"github.com/Hezekiah-Elisha/tazx/internal/system"
+	"github.com/Hezekiah-Elisha/tazx/libs"
 
 	"github.com/spf13/cobra"
 )
@@ -20,44 +23,78 @@ var (
 var topCmd = &cobra.Command{
 	Use:   "top",
 	Short: "View the top processes running on your server",
-	Long:  `Get a real-time view of the top processes consuming CPU and Memory resources on your server.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		for {
-			clearScreen()
-			renderTopView()
-			if onceMode {
-				break
-			}
-			time.Sleep(time.Duration(refreshSec) * time.Second)
+	Long:  `Get a real-time view of the top processes consuming CPU and memory resources on your server.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if jsonFlag && !onceMode {
+			return fmt.Errorf("--json requires --once for 'tazx top'")
 		}
+		if topLimit < 1 {
+			return fmt.Errorf("--limit must be at least 1 (got %d)", topLimit)
+		}
+		if refreshSec < 1 {
+			return fmt.Errorf("--refresh must be at least 1 second (got %d)", refreshSec)
+		}
+
+		ctx, cancel := signalContext()
+		defer cancel()
+
+		sampler := system.NewProcessSampler()
+
+		if onceMode {
+			return renderTopView(ctx, os.Stdout, sampler, true)
+		}
+
+		screen := libs.NewLiveScreen(os.Stdout)
+		return libs.RunLiveLoop(ctx, screen, time.Duration(refreshSec)*time.Second, "", func(runCtx context.Context, w io.Writer) error {
+			return renderTopView(runCtx, w, sampler, false)
+		})
 	},
 }
 
-func renderTopView() {
-	sysStatus, err := system.GetSystemStatus()
+func renderTopView(ctx context.Context, w io.Writer, sampler *system.ProcessSampler, oneShot bool) error {
+	sysStatus, err := system.GetSystemStatus(ctx)
 	if err != nil {
-		libs.Colorize(libs.Red, fmt.Sprintf("Error fetching system info: %v\n", err))
-		return
+		return fmt.Errorf("error fetching system info: %w", err)
 	}
 
-	libs.Colorize(libs.Bold, "⚡ TAZX TOP - Real-Time Server Processes\n")
-	fmt.Printf("Host: %s | Platform: %s | Uptime: %ds\n", sysStatus.HostName, sysStatus.Platform, sysStatus.UptimeSeconds)
-	fmt.Printf("CPU: %.1f%%  |  RAM: %.1fGB / %.1fGB (%.1f%%)  |  Disk: %.1f%%\n\n",
+	procs, err := sampler.Sample(ctx, topLimit, sortByMem)
+	if err != nil {
+		return fmt.Errorf("error fetching process list: %w", err)
+	}
+
+	if jsonFlag {
+		return libs.PrintJSON(w, struct {
+			System    *system.SystemStatus `json:"system"`
+			SortBy    string               `json:"sort_by"`
+			Processes []system.ProcessInfo `json:"processes"`
+		}{
+			System: sysStatus,
+			SortBy: func() string {
+				if sortByMem {
+					return "memory"
+				}
+				return "cpu"
+			}(),
+			Processes: procs,
+		})
+	}
+
+	libs.ColorizeTo(w, libs.Bold, "⚡ TAZX TOP - Server Processes\n")
+	fmt.Fprintf(w, "Host: %s | Platform: %s | Uptime: %s\n",
+		libs.SanitizeTerminal(sysStatus.HostName),
+		libs.SanitizeTerminal(sysStatus.Platform),
+		libs.FormatDuration(sysStatus.UptimeSeconds),
+	)
+	fmt.Fprintf(w, "CPU: %5.1f%%  |  RAM: %5.1fGB / %5.1fGB (%5.1f%%)  |  Disk (/): %5.1f%%\n\n",
 		sysStatus.CPUPercent, sysStatus.MemoryUsedGB, sysStatus.MemoryTotalGB, sysStatus.MemoryPercent, sysStatus.DiskPercent)
 
 	sortLabel := "CPU %"
 	if sortByMem {
 		sortLabel = "RAM %"
 	}
-	libs.Colorize(libs.Cyan, fmt.Sprintf("Top %d Processes (Sorted by %s):\n", topLimit, sortLabel))
-	fmt.Printf("%-8s %-15s %-25s %-10s %-10s %s\n", "PID", "USER", "COMMAND", "CPU %", "RAM %", "STATUS")
-	fmt.Println("---------------------------------------------------------------------------------")
-
-	procs, err := system.GetTopProcesses(topLimit, sortByMem)
-	if err != nil {
-		libs.Colorize(libs.Red, fmt.Sprintf("Error fetching process list: %v\n", err))
-		return
-	}
+	libs.ColorizeTo(w, libs.Cyan, fmt.Sprintf("Top %d Processes (Sorted by %s):\n", topLimit, sortLabel))
+	fmt.Fprintf(w, "%-8s %-15s %-25s %-10s %-10s %s\n", "PID", "USER", "COMMAND", "CPU %", "RAM %", "STATUS")
+	fmt.Fprintln(w, "---------------------------------------------------------------------------------")
 
 	for _, p := range procs {
 		cpuColor := libs.Reset
@@ -72,24 +109,27 @@ func renderTopView() {
 			memColor = libs.Yellow
 		}
 
-		cpuStr := libs.SprintColor(cpuColor, fmt.Sprintf("%.1f%%", p.CPUPercent))
-		memStr := libs.SprintColor(memColor, fmt.Sprintf("%.1f%%", p.MemPercent))
-
-		fmt.Printf("%-8d %-15s %-25s %-10s %-10s %s\n", p.PID, trunc(p.Username, 15), trunc(p.Name, 25), cpuStr, memStr, p.Status)
+		fmt.Fprintf(w, "%-8d %s %s %s %s %s\n",
+			p.PID,
+			libs.PadRight(libs.Truncate(libs.SanitizeTerminal(p.Username), 15), 15),
+			libs.PadRight(libs.Truncate(libs.SanitizeTerminal(p.Name), 25), 25),
+			libs.ColorPadRight(cpuColor, fmt.Sprintf("%.1f%%", p.CPUPercent), 10),
+			libs.ColorPadRight(memColor, fmt.Sprintf("%.1f%%", p.MemPercent), 10),
+			libs.SanitizeTerminal(p.Status),
+		)
 	}
 
-	if !onceMode {
-		libs.Colorize(libs.Gray, fmt.Sprintf("\nRefreshing every %ds. Press Ctrl+C to exit...\n", refreshSec))
+	if !oneShot {
+		libs.ColorizeTo(w, libs.Gray, fmt.Sprintf("\nRefreshing every %ds. Press Ctrl+C to exit...\n", refreshSec))
+	} else {
+		fmt.Fprintln(w)
 	}
-}
-
-func clearScreen() {
-	fmt.Print("\033[H\033[2J")
+	return nil
 }
 
 func init() {
-	topCmd.Flags().BoolVarP(&sortByMem, "sort-mem", "m", false, "Sort processes by Memory usage instead of CPU")
-	topCmd.Flags().IntVarP(&topLimit, "limit", "l", 15, "Number of processes to list")
-	topCmd.Flags().IntVarP(&refreshSec, "refresh", "r", 2, "Refresh interval in seconds")
-	topCmd.Flags().BoolVar(&onceMode, "once", false, "Run once and exit without live refresh")
+	topCmd.Flags().BoolVarP(&sortByMem, "sort-mem", "m", false, "sort processes by Memory usage instead of CPU")
+	topCmd.Flags().IntVarP(&topLimit, "limit", "l", 15, "number of processes to list")
+	topCmd.Flags().IntVarP(&refreshSec, "refresh", "r", 2, "refresh interval in seconds")
+	topCmd.Flags().BoolVar(&onceMode, "once", false, "run once and exit without live refresh")
 }
